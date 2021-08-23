@@ -1,0 +1,4 @@
+name = "HFQMC"
+uuid = "3435d543-7892-4b80-953a-2a264c1429be"
+authors = ["harrisonlabollita <hlabollita0219@lions.piedmont.edu>"]
+version = "0.1.0"
