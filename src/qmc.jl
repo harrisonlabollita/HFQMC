@@ -1,4 +1,18 @@
-function cleanupdate!(g, g0, vn)
+"""
+function Δ(g::Matrix, m::Tuple, ising_config::Matrix)
+    g            - green's function matrix
+    iτ           - time slice 
+    ising_config - configuration of ising fields
+"""
+function Δ(g::Matrix, iτ::Int64, ising_conifg::Matrix)
+    a = [exp(-2*ising_config[iτ]) -1, exp(2*ising_config[iτ]) -1]
+    Δup = 1+a[1]*(1-g[1][p,p])
+    Δdn = 1+a[2]*(1-g[2][p,p])
+    return (Δup*Δdn, a)
+end
+
+
+function cleanupdate!(g::Matrix, g0::Matrix, ising_config::Array)
     L = size(g[1])[1]
     A = zeros(L, L)
     for (i, spin) in enumerate([1, -1])
@@ -13,26 +27,23 @@ function cleanupdate!(g, g0, vn)
     end
 end
 
-function Δ(p, g, vn)
-    a = [exp(-2*vn[p])-1, exp(2*vn[p])-1]
-    Δup = 1+a[1]*(1-g[1][p,p])
-    Δdn = 1+a[2]*(1-g[2][p,p])
-    return (Δup*Δdn, a)
-end
 
-function accept!(p, g, a, vn, x0, x1)
-    vn[p] *= -1 # flip the spin
-    L = length(vn)
+
+function accept!(iτ::Int64, g::Matrix, a::Array, ising_config::Array, x0, x1)
+    ising_config[iτ] *= -1 # flip the spin
+    L = length(ising_config)
     for (i, s) in enumerate([1, -1])
-        b = a[i]/(1+a[i]*(1-g[i][p,p]))
-        x0 = copy(g[i][:,p])
-        x0[p] -= 1
-        x1 = g[i][p,:]
+        b = a[i]/(1+a[i]*(1-g[i][iτ,iτ]))
+        x0 = copy(g[i][:, iτ])
+        x0[iτ] -= 1
+        x1 = g[i][iτ,:]
+        # perform rank1 update
         BLAS.ger!(b, x0, x1, g[i])
     end
 end
 
-function save(g, nn, nd, Ḡτ)
+
+function save(g::Matrix, nn, nd, Ḡτ)
     L = size(g[1])[1]
     Gτ = zeros(L+1)
     for s=1:2
@@ -61,56 +72,36 @@ function save(g, nn, nd, Ḡτ)
     return nn.+nnt, nd.+nnd, Ḡτ .+ Gτ
 end
 
-function run(ω, G0iω, τ, config, λ)
+function run!(ω, G0iω, τ, config, λ)
     L = length(config)
     vn = λ .* config
     G0τ = invFourier(G0iω, ω, τ)
     g0 = g0_2D(τ, G0τ)
-    
-    #       ↑             ↓
     g = [zeros(L, L), zeros(L, L)]
     cleanupdate!(g, g0, vn)
     x0 = zeros(L)
     x1 = zeros(L)
     accepted = 0
     stored = 0
-    st1 = 0
-    st2 = 0
-    st3 = 0
-    
     nn = 0
     nd = 0
-    
     Ḡτ = zeros(L+1)
-    @printf "%2s %6s %6s %8s %8s %8s\n" "no." "accpt" "strd" "t-try" "t-accpt" "t-measure"
     for istep=1:nsteps
-        t1 = time_ns()/1e9
-        
-        p = 1 + convert(Int, round(rand()*(L-1), digits=0))
-        ρr, a = Δ(p, g, vn)
+        iτ = 1 + convert(Int, round(rand()*(L-1), digits=0))
+        ρr, a = Δ(iτ, g, vn)
         if ρr < 0
             @warn "!!! Sign problem !!!"
         end
-        t2 = time_ns()/1e9
-        
-        st1 += t2-t1
         if abs(ρr) > rand() # metroplis
-            accept!(p, g, a, vn, x0, x1)
+            accept!(iτ, g, a, vn, x0, x1)
             accepted += 1
         end
-        t3 = time_ns()/1e9
-        st2 += t3-t2
         
         if istep>nwarmup && (istep-nwarmup)%measure == 0
             nn, nd, Ḡτ = save(g, nn, nd, Ḡτ)
             stored +=1
         end
-        t4 = time_ns()/1e9
-        st3 += t4-t3
         
-        if istep % ncout == 1
-	    @printf "%2i %6d %6d %8.4f %8.4f %8.4f\n" istep/ncout accepted stored st1/istep*1e5 st2/istep*1e5 st3/istep*1e5
-        end
     end
     Ḡτ ./= stored
     nn /= stored
