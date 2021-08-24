@@ -61,7 +61,7 @@ function save(g, nn, nd, Ḡτ)
     return nn.+nnt, nd.+nnd, Ḡτ .+ Gτ
 end
 
-function HirshFye(ω, G0iω, τ, config, λ)
+function run(ω, G0iω, τ, config, λ)
     L = length(config)
     vn = λ .* config
     G0τ = invFourier(G0iω, ω, τ)
