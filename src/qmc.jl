@@ -74,9 +74,9 @@ end
 
 function run!(ω, G0iω, τ, config, λ)
     L = length(config)
-    vn = λ .* config
-    G0τ = invFourier(G0iω, ω, τ)
-    g0 = g0_2D(τ, G0τ)
+    ising_config = λ .* config
+    G0τ = invFourier(G0iω, τ)
+    g0 = g0(G0τ)
     g = [zeros(L, L), zeros(L, L)]
     cleanupdate!(g, g0, vn)
     x0 = zeros(L)
@@ -88,12 +88,12 @@ function run!(ω, G0iω, τ, config, λ)
     Ḡτ = zeros(L+1)
     for istep=1:nsteps
         iτ = 1 + convert(Int, round(rand()*(L-1), digits=0))
-        ρr, a = Δ(iτ, g, vn)
+        ρr, a = Δ(iτ, g, ising_config)
         if ρr < 0
             @warn "!!! Sign problem !!!"
         end
         if abs(ρr) > rand() # metroplis
-            accept!(iτ, g, a, vn, x0, x1)
+            accept!(iτ, g, a, ising_config, x0, x1)
             accepted += 1
         end
         
@@ -107,6 +107,6 @@ function run!(ω, G0iω, τ, config, λ)
     nn /= stored
     nd /= stored
     println("density = $(nd), double-occ = $(nn)")
-    Giω = Fourier(Ḡτ, τ, β, ω)
+    Giω = Fourier(Ḡτ, β, ω)
     return G0iω, Giω, Ḡτ, config, G0τ
 end

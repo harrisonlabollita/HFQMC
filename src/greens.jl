@@ -17,29 +17,29 @@ end
 function noninteractingG0(mesh::Int64=2050, β::Float64=16.)
     ωₙ = ((2 .* range(1, N, step=1) .+ 1) .* π ) ./β  # ωₙ = (2n +1)β
     # non-interacting Green's function for the Bethe lattice
-    GImFreq(ωₙ, β, 2im .* (ωₙ - sqrt.(ω .* ω .+ 1)))
+    GreenImFreq(ωₙ, β, 2im .* (ωₙ - sqrt.(ω .* ω .+ 1)))
     # TODO- provide more cases or read from a file
     # This is pretty standard for a qmc solver
 end
+
 """
 Convert from G(τ₂-τ₁) = g[τ,τ'].
 """
-function g0(sites::Int64, G0::GreenImTime)
-    L = length(G0.τ)-1
-    g0 = zeros(L*sites, L*sites)  # size (L × N) × (L × N)
-    for i=1:L*sites, j=1:L*sites
-        if i>=j
-            g0[i,j] = -G0[(i-j)+1]
-        else
-            g0[i,j] = G0[L+(i-j)]
+function g0(G0::GreenImTime)
+    L = length(G0.τ) - 1
+    g0  = zeros(L, L)
+    for i=1:L
+        for j=1:L
+            g0[i,j] = i>=j ? -G0.data[(i-j)+1] : G0.data[L+(i-j)]
         end
     end
     g0
 end
+
 """
 Compute the inverse fourier transform of G(iω).
 """
-function invFourier(G::GFImFreq)
+function invFourier(τ, G::GFImFreq)
     β = G.beta
     Gτ = zeros(length(τ))
     for (it, t) in enumerate(τ)
