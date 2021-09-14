@@ -1,4 +1,35 @@
 """
+create a multi-band model given U and J
+"""
+function setupIsingFields(Nd, U, J) 
+  Nf = Nd*(Nd-1)/2.0    # number of pairs
+  Uvec = zeros(Nf)      # vector holding U's
+  pairs = zeros(Nf, 2)  # matrix of pairs
+  fij   = zeros(Nd, Nf)
+  ij = 1
+  for i=1:Nd-1
+      for j=i+1:Nd
+          Uvec[ij] = U
+          Si = 1 - 2*(i%2)
+          Sj = 1 - 2*(j%2)
+          if j == i+1 && i%2 == 0
+              U[ij] += J
+          elseif (Si*Sj > 0)
+              U[ij] -= J
+          end
+          pairs[ij, 1] = i
+          pairs[ij, 2] = j
+          fij[i, ij] = 1
+          fij[j, ij] = -1
+          ij += 1
+        end
+    end
+    (Uvec, pairs, fij)
+end
+
+
+
+"""
 function Δ(g::Matrix, m::Tuple, ising_config::Matrix)
     g            - green's function matrix
     iτ           - time slice 
