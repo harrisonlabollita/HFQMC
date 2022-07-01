@@ -59,7 +59,7 @@ class QMC {
 					A[l1][l1] += 1+a[l1];
 				}
 				// call out to blas/lapack here
-				g[ia] = 
+				g[ia]; // TODO: write this part
 			}
 		}
 

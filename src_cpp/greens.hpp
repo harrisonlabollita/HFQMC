@@ -38,7 +38,25 @@ class GFtau {
 				data.push_back(0.0);
 			}
 		}
+		GFiw fourier(vector<float> iw, int m = 400) {
+			// perform Fourier transform G(tau) -> G(iw)
+			GFiw Giw(beta, m); // a fresh GF object
+			for (int w=0; w<iw.size(); w++){
+				double sum_re, sum_im = 0;
+				for (int t=0; mesh.size()-1; t++) {
+					double c0 = cos(mesh[t]*iw[w]), c1 = cos(mesh[t+1]*iw[w]);
+					double s0 = sin(mesh[t]*iw[w]), s1 = sin(mesh[t+1]*iw[w]);
+					double G0 = data[t], G1 = data[t+1];
+					double dG = (G1-G0)/(mesh[t+1]-mesh[t]);
+					sumim += (c0*G0-c1*G1 + dG*(s1-s0)/iw[w])/iw[w];
+					sumre += (s1*G1-s0*G0 + dG*(c1-c0)/iw[w])/iw[w];
+				}
+				Giw.data[w] = complex<float> (sumre, sumim);
+			}
+			return Giw;
+		}
 };
+
 // Green's function  on imaginary axis
 class GFiw {
 	public:
