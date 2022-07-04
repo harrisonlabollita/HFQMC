@@ -89,6 +89,25 @@ class QMC {
 		void init_G0_tau_2d() {
 			G0_tau_2d = g0_2d();
 		};
+
+		float det_ratio(int p, vector<vector<vector<float>>> g)
+		{
+			ising_spins[p] *= -1;
+			float vn = lambda*ising_spins[p];
+			vector<float> a(2, 0.0);
+			a[0] = exp(-2*vn)-1.0f;
+			a[1] = exp(2*vn)-1.0f;
+			float det_up=1.0f+a[0]*(1-g[0][p][p]);
+			float det_dn=1.0f+a[1]*(1-g[1][p][p]);
+			return det_up*det_dn;
+		}
+
+		void accept_move(void)
+		{
+			//accept the move and update the Green's function
+		}
+
+
 };
 
 
