@@ -3,6 +3,8 @@
 # play around with some analytic continuation code
 # goal shape into class structure and interface with TRIQS?
 import numpy as np
+from triqs.gf import *
+import matplotlib.pyplot as plt
 
 # Ref for ADMM algorithm: 10.1103/PhysRevE.95.061302
 # G = K ρ
@@ -77,3 +79,25 @@ def update( # figure of arguments
     z = Pplus(np.dot(V, xp) + u)
     u += np.dot(V, xp) - z
     return xp, zp, up, z, u
+
+def setup_mock_Gtau():
+    err = 1e-5
+    Giw = GfImFreq(beta=10, indices=[0])
+    Gw = GfReFreq(window=(-10,10), indices=[0])
+    Giw << SemiCircular(1.0)-0.5*SemiCircular(0.5)
+    Gw << SemiCircular(1.0)-0.5*SemiCircular(0.5)
+
+    Gtau = GfImTime(beta=10, indices=[0], n_points=2501)
+    Gtau.set_from_fourier(Giw)
+
+    Gtau.data[:,0,0] += err * np.random.randn(len(Gtau.data))
+    return Gtau, Gw
+
+
+if __name__ == "__main__":
+    Gtau, Gw = setup_mock_Gtau()
+    #plt.figure()
+    #plt.plot((-1/np.pi)*Gw.data[:,0,0].imag)
+    #plt.show()
+
+
