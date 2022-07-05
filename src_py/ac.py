@@ -28,7 +28,10 @@ import numpy as np
 # Cost function
 # F(A') = 1/2 || G' - SA'|| + λ || A' || <- L1 norm
 
-
+# ADMM algorithm
+#  F̃(A', z', z) = 1/2λ || A' - S G' || - ν(⟨VA'⟩ - 1) + ||z'|| + lim γ->∞ ∑j Θ(-zj)
+#  z' = A', z = V A'
+#
 
 
 def calc_K_matrix(ωmax, β, M, N, sign="fermion"):
@@ -62,6 +65,15 @@ def calc_K_matrix(ωmax, β, M, N, sign="fermion"):
 def calc_svd(K ):
     return np.linalg.svd(K)
 
-
-
-
+def update( # figure of arguments
+        ):
+    e = np.ones() # determine size 
+    xp = np.dot(np.linalg.inv((1/λ)*np.dot(S.transpose(), S) + μp + μ),
+               ((1/λ)*np.dot(S.transpose(),Gp) + μp*(zp - up) + μ*np.dot(V.transpose(), z - u) \
+         + ν*np.dot(V.transpose(), e)))
+    # updates
+    zp = Salpha(xp + up)
+    up += xp - zp
+    z = Pplus(np.dot(V, xp) + u)
+    u += np.dot(V, xp) - z
+    return xp, zp, up, z, u
