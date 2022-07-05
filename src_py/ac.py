@@ -64,15 +64,43 @@ def calc_K_matrix(ωmin, ωmax, β, shape, sign="fermion"):
 def calc_svd(K):
     return np.linalg.svd(K)
 
-def update( # figure of arguments
-        ):
-    e = np.ones() # determine size 
-    xp = np.dot(np.linalg.inv((1/λ)*np.dot(S.transpose(), S) + μp + μ),
-               ((1/λ)*np.dot(S.transpose(),Gp) + μp*(zp - up) + μ*np.dot(V.transpose(), z - u) \
-         + ν*np.dot(V.transpose(), e)))
+def Pplus(z): 
+    return np.array([max(zj,0) for zj in z], dtype=float)
+
+def Salpha(x, α):
+    def _Salpha(x):
+        if x > α: return x-α
+        if x < -α: return x + α
+        return 0
+    return np.array(list(map(_Salpha, x)))
+
+def compute_nu(ξ1, ξ2, V):
+    Vξ1 = np.sum(np.dot(V, ξ1))
+    Vξ2 = np.sum(np.dot(V, ξ2))
+    return (1 - Vξ1)/Vξ2
+
+def update(S, V, Gp, zp, up, z, u, μp, μ, λ):
+    L = S.shape[0]
+    e = np.ones(V.shape[0]) # determine size 
+
+    ξ1 = np.zeros(L,dtype=float);
+    ξ2 = np.zeros(L,dtype=float);
+   
+    inv = np.zeros((L,L),dtype=float)
+    for i in range(L): inv[i,i] = 1.0/(S[i]**2/λ + (μ+μp))
+
+    ξ1 = (1/λ)*np.dot(S.T, Gp) + μp*(zp-up) + μ*np.dot(V.T, (z-u))
+    ξ2 = np.dot(V.T, e)
+
+    ξ1 = np.dot(inv, ξ1) 
+    ξ2 = np.dot(inv, ξ2) 
+
+    ν = compute_nu(ξ1, ξ2, V)
+    xp = ξ1 + ν*ξ2
+
     # updates
-    zp = Salpha(xp + up)
-    up += xp - zp
+    zp = Salpha(xp + up, 1/μp)
+    up += (xp - zp)
     z = Pplus(np.dot(V, xp) + u)
     u += np.dot(V, xp) - z
     return xp, zp, up, z, u
@@ -93,17 +121,18 @@ def setup_mock_Gtau():
 
 if __name__ == "__main__":
     Gtau, Gw = setup_mock_Gtau()
+    N = 1001
     beta = 10.0
     ωmin, ωmax = -10, 10
-    K = calc_K_matrix(ωmin, ωmax, beta, shape=(Gtau.data.shape[0], 1001))
+    K = calc_K_matrix(ωmin, ωmax, beta, shape=(Gtau.data.shape[0], N))
     M, N = K.shape
     start = time.time()
     U, S, V = calc_svd(K)
     stop = time.time()
-    print("SVD computation time = ", (stop-start), "s")
     # drop small values
     L = len(np.where(S>1e-10)[0])
     print('-'*80)
+    print("SVD computation time = ", (stop-start), "s")
     print('singular values: ')
     for i in range(L): print("S[", i, "] = ", S[i] )
     print('-'*80)
@@ -115,13 +144,23 @@ if __name__ == "__main__":
 
     Gout = np.zeros(M)
     Aout = np.zeros(N)
+
+    Gp = np.dot(U.T, Gtau.data[:,0,0].real)
+
+    xp = np.zeros(L)
+    zp = np.zeros(L)
+    up = np.zeros(L)
+    z = np.zeros(N)
+    u = np.zeros(N)
+
+    μ = 1.0
+    μp = 1.0
+    λ = 10**-6.0
+
+    update(S, V, Gp, zp, up, z, u, μp, μ, λ)
+
     #Aout = estimate(Gqmc, K, U, S, V)
     #Gout = np.dot(K, Aout)
-
-
-
-
-
 
     # plot A(ω) = -1/π Im G(ω)
     #plt.figure()
