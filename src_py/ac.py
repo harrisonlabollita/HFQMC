@@ -69,9 +69,12 @@ def Pplus(z):
 
 def Salpha(x, α):
     def _Salpha(x):
-        if x > α: return x-α
-        if x < -α: return x + α
-        return 0
+        if x > α:
+            return x-α
+        elif x < -α: 
+            return x + α
+        else:
+            return 0
     return np.array(list(map(_Salpha, x)))
 
 def compute_nu(ξ1, ξ2, V):
@@ -89,7 +92,7 @@ def update(S, V, Gp, zp, up, z, u, μp, μ, λ):
     inv = np.zeros((L,L),dtype=float)
     for i in range(L): inv[i,i] = 1.0/(S[i]**2/λ + (μ+μp))
 
-    ξ1 = (1/λ)*np.dot(S.T, Gp) + μp*(zp-up) + μ*np.dot(V.T, (z-u))
+    ξ1 = (1/λ)*(S*Gp) + μp*(zp-up) + μ*np.dot(V.T, (z-u))
     ξ2 = np.dot(V.T, e)
 
     ξ1 = np.dot(inv, ξ1) 
@@ -105,8 +108,28 @@ def update(S, V, Gp, zp, up, z, u, μp, μ, λ):
     u += np.dot(V, xp) - z
     return xp, zp, up, z, u
 
+def calculate(U, S, V, Gtau, μ, μp, λ, tol=1e-8, max_iter=10000):
+    L = S.shape[0]
+    N = V.shape[0]
+
+    Gp = np.dot(U.T, Gtau)
+    xp = np.zeros(L)
+    zp = np.zeros(L)
+    up = np.zeros(L)
+    z = np.zeros(N)
+    u = np.zeros(N)
+
+    for it in range(max_iter):
+        xp, zp, up, z, u = update(S, V, Gp, zp, up, z, u, μp, μ, λ)
+        if it%1000 == 0 and it > 0:
+            print("it = ", it,"\t", "ΔF = ", np.sum(np.abs(z-np.dot(V,xp))))
+        if np.sum(np.abs(z - np.dot(V,xp))) < tol:
+            return np.dot(V,xp)
+    print("[WARNING] convergence never reached!")
+    return np.dot(V, xp)
+
 def setup_mock_Gtau():
-    err = 1e-5
+    err = 1e-2
     Giw = GfImFreq(beta=10, indices=[0])
     Gw = GfReFreq(window=(-10,10), indices=[0])
     Giw << SemiCircular(1.0)-0.5*SemiCircular(0.5)
@@ -119,6 +142,50 @@ def setup_mock_Gtau():
     return Gtau, Gw
 
 
+def estimate(Gtau, K, U, S, V):
+
+    μ = 1.0
+    μp = 1.0
+    λest = 0.0
+    Fχold = 0.0
+
+    l0 = -6.0
+    λ0 = 10**l0
+    # need to check this ----------
+    #                             |
+    #                            \ /
+    xout = calculate(U, S, V, Gtau.data[:,0,0].real, μ, μp, λ0)
+    χ0 = np.dot(Gtau.data[:,0,0].real-np.dot(K,xout),Gtau.data[:,0,0].real-np.dot(K,xout))
+
+    l1 = 1.0
+    λ1 = 10**l1
+    xout = calculate(U, S, V, Gtau.data[:,0,0].real, μ, μp, λ1)
+    χ1 = np.dot(Gtau.data[:,0,0].real-np.dot(K,xout),Gtau.data[:,0,0].real-np.dot(K,xout))
+
+    b = (np.log(χ0)-np.log(χ1))/(np.log(λ0)-np.log(λ1))
+    a = np.exp(np.log(χ0)-b*np.log(λ0))
+
+    lexps = np.linspace(l0,l1,25)
+    for i, ll in enumerate(lexps):
+        λ = 10**ll
+        xout = calculate(U, S, V, Gtau.data[:,0,0].real, μ, μp, λ)
+        χ = np.dot(Gtau.data[:,0,0].real-np.dot(K,xout),Gtau.data[:,0,0].real-np.dot(K,xout))
+        Fχ = a*λ**b/χ
+        print(i,"/",len(lexps),  "λest= ", λ, "error= ", χ)
+        if i > 2:
+            if Fχ > Fχold:
+                λest = λ
+                Fχold = Fχ
+        else:
+            Fχold = Fχ
+
+    λ = λest
+    print("appropriate λ : ", λ)
+    print("calculating final G(ω)...")
+    xout = calculate(U, S, V, Gtau.data[:,0,0].real, μ, μp, λ)
+    Gout = np.dot(K,xout)
+    return xout, Gout
+
 if __name__ == "__main__":
     Gtau, Gw = setup_mock_Gtau()
     N = 1001
@@ -130,7 +197,7 @@ if __name__ == "__main__":
     U, S, V = calc_svd(K)
     stop = time.time()
     # drop small values
-    L = len(np.where(S>1e-10)[0])
+    L = len(np.where(S>1e-11)[0])
     print('-'*80)
     print("SVD computation time = ", (stop-start), "s")
     print('singular values: ')
@@ -143,21 +210,9 @@ if __name__ == "__main__":
     V = V[:,:L]
 
     Gout = np.zeros(M)
-    Aout = np.zeros(N)
+    #Aout = np.zeros(N)
 
-    Gp = np.dot(U.T, Gtau.data[:,0,0].real)
-
-    xp = np.zeros(L)
-    zp = np.zeros(L)
-    up = np.zeros(L)
-    z = np.zeros(N)
-    u = np.zeros(N)
-
-    μ = 1.0
-    μp = 1.0
-    λ = 10**-6.0
-
-    update(S, V, Gp, zp, up, z, u, μp, μ, λ)
+    ρout, Gout = estimate(Gtau, K, U, S, V)
 
     #Aout = estimate(Gqmc, K, U, S, V)
     #Gout = np.dot(K, Aout)
