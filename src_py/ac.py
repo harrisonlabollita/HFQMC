@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import time
+import sys
 # play around with some analytic continuation code
 # goal shape into class structure and interface with TRIQS?
 import numpy as np
@@ -43,7 +44,7 @@ def calc_K_matrix(ωmin, ωmax, β, shape, sign="fermion"):
     # K-(τ,ω) = 1 / ( exp(τω) - exp((-β+τ)*ω) )
     # + = fermion
     # - = boson
-    cutoff = 50.0
+    cutoff = 100.0
     K = np.zeros((M,N), dtype=float)
 
     ωmesh = np.linspace(ωmin, ωmax, N)
@@ -131,9 +132,9 @@ def calculate(U, S, V, Gtau, μ, μp, λ, tol=1e-8, max_iter=10000):
 def setup_mock_Gtau():
     err = 1e-3
     Giw = GfImFreq(beta=100, indices=[0])
-    Gw = GfReFreq(window=(-10,10), indices=[0])
-    Giw << SemiCircular(1.0)-0.5*SemiCircular(0.5)
-    Gw << SemiCircular(1.0)-0.5*SemiCircular(0.5)
+    Gw = GfReFreq(window=(-5,5), indices=[0])
+    Giw << SemiCircular(1.0) #*SemiCircular(0.5)
+    Gw << SemiCircular(1.0)  #*SemiCircular(0.5)
 
     Gtau = GfImTime(beta=100, indices=[0], n_points=4001)
     Gtau.set_from_fourier(Giw)
@@ -154,12 +155,12 @@ def estimate(Gtau, K, U, S, V):
     # need to check this ----------
     #                             |
     #                            \ /
-    xout = calculate(U, S, V, Gtau.data[:,0,0].real, μ, μp, λ0)
+    xout = calculate(U, S, V, -Gtau.data[:,0,0].real, μ, μp, λ0)
     χ0 = np.dot(Gtau.data[:,0,0].real-np.dot(K,xout),Gtau.data[:,0,0].real-np.dot(K,xout))
 
     l1 = 1.0
     λ1 = 10**l1
-    xout = calculate(U, S, V, Gtau.data[:,0,0].real, μ, μp, λ1)
+    xout = calculate(U, S, V, -Gtau.data[:,0,0].real, μ, μp, λ1)
     χ1 = np.dot(Gtau.data[:,0,0].real-np.dot(K,xout),Gtau.data[:,0,0].real-np.dot(K,xout))
 
     b = (np.log(χ0)-np.log(χ1))/(np.log(λ0)-np.log(λ1))
@@ -168,7 +169,7 @@ def estimate(Gtau, K, U, S, V):
     lexps = np.linspace(l0,l1,25)
     for i, ll in enumerate(lexps):
         λ = 10**ll
-        xout = calculate(U, S, V, Gtau.data[:,0,0].real, μ, μp, λ)
+        xout = calculate(U, S, V, -Gtau.data[:,0,0].real, μ, μp, λ)
         χ = np.dot(Gtau.data[:,0,0].real-np.dot(K,xout),Gtau.data[:,0,0].real-np.dot(K,xout))
         Fχ = a*λ**b/χ
         print(i,"/",len(lexps),  "λest= ", λ, "error= ", χ)
@@ -182,7 +183,7 @@ def estimate(Gtau, K, U, S, V):
     λ = λest
     print("appropriate λ : ", λ)
     print("calculating final G(ω)...")
-    xout = calculate(U, S, V, Gtau.data[:,0,0].real, μ, μp, λ)
+    xout = calculate(U, S, V, -Gtau.data[:,0,0].real, μ, μp, λ)
     Gout = np.dot(K,xout)
     return xout, Gout
 
@@ -190,21 +191,20 @@ if __name__ == "__main__":
     Gtau, Gw = setup_mock_Gtau()
     # plot A(ω) = -1/π Im G(ω)
     fig, ax = plt.subplots(1,2)
-    ax[0].plot([t.real for t in Gtau.mesh], Gtau.data[:,0,0].real)
+    ax[0].plot(np.array([t.real for t in Gtau.mesh])/Gtau.mesh.beta,-Gtau.data[:,0,0].real)
     ax[1].plot([w.real for w in Gw.mesh], (-1/np.pi)*Gw.data[:,0,0].imag)
     plt.show()
-    #plt.plot((-1/np.pi)*Gw.data[:,0,0].imag)
-    #plt.show()
+
     N = 1001
     beta = 100.0
-    ωmin, ωmax = -10, 10
+    ωmin, ωmax = -5, 5
     K = calc_K_matrix(ωmin, ωmax, beta, shape=(Gtau.data.shape[0], N))
     M, N = K.shape
     start = time.time()
     U, S, V = calc_svd(K)
     stop = time.time()
     # drop small values
-    L = len(np.where(S>1e-11)[0])
+    L = len(np.where(S>1e-10)[0])
     print('-'*80)
     print("SVD computation time = ", (stop-start), "s")
     print('singular values: ')
