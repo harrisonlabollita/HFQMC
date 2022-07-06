@@ -129,13 +129,13 @@ def calculate(U, S, V, Gtau, μ, μp, λ, tol=1e-8, max_iter=10000):
     return np.dot(V, xp)
 
 def setup_mock_Gtau():
-    err = 1e-2
-    Giw = GfImFreq(beta=10, indices=[0])
+    err = 1e-3
+    Giw = GfImFreq(beta=100, indices=[0])
     Gw = GfReFreq(window=(-10,10), indices=[0])
     Giw << SemiCircular(1.0)-0.5*SemiCircular(0.5)
     Gw << SemiCircular(1.0)-0.5*SemiCircular(0.5)
 
-    Gtau = GfImTime(beta=10, indices=[0], n_points=2501)
+    Gtau = GfImTime(beta=100, indices=[0], n_points=4001)
     Gtau.set_from_fourier(Giw)
 
     Gtau.data[:,0,0] += err * np.random.randn(len(Gtau.data))
@@ -188,8 +188,15 @@ def estimate(Gtau, K, U, S, V):
 
 if __name__ == "__main__":
     Gtau, Gw = setup_mock_Gtau()
+    # plot A(ω) = -1/π Im G(ω)
+    fig, ax = plt.subplots(1,2)
+    ax[0].plot([t.real for t in Gtau.mesh], Gtau.data[:,0,0].real)
+    ax[1].plot([w.real for w in Gw.mesh], (-1/np.pi)*Gw.data[:,0,0].imag)
+    plt.show()
+    #plt.plot((-1/np.pi)*Gw.data[:,0,0].imag)
+    #plt.show()
     N = 1001
-    beta = 10.0
+    beta = 100.0
     ωmin, ωmax = -10, 10
     K = calc_K_matrix(ωmin, ωmax, beta, shape=(Gtau.data.shape[0], N))
     M, N = K.shape
@@ -217,9 +224,5 @@ if __name__ == "__main__":
     #Aout = estimate(Gqmc, K, U, S, V)
     #Gout = np.dot(K, Aout)
 
-    # plot A(ω) = -1/π Im G(ω)
-    #plt.figure()
-    #plt.plot((-1/np.pi)*Gw.data[:,0,0].imag)
-    #plt.show()
 
 
