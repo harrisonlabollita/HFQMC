@@ -37,14 +37,12 @@ import matplotlib.pyplot as plt
 #
 
 
-def calc_K_matrix(ωmin, ωmax, β, shape, sign="fermion"):
+def calc_K_matrix(ωmin, ωmax, β, shape):
     M, N = shape[0], shape[1]
     # K±(τ,ω) = exp(-τ ω) / ( 1 ± exp(-β ω) )
-    # K+(τ,ω) = 1 / ( exp(τω) + exp((-β+τ)*ω) )
-    # K-(τ,ω) = 1 / ( exp(τω) - exp((-β+τ)*ω) )
     # + = fermion
     # - = boson
-    cutoff = 100.0
+    cutoff = 50.0
     K = np.zeros((M,N), dtype=float)
 
     ωmesh = np.linspace(ωmin, ωmax, N)
@@ -55,10 +53,7 @@ def calc_K_matrix(ωmin, ωmax, β, shape, sign="fermion"):
             βmτω = (-β+τ)*ω
             expτω = np.exp(τω) if τω <  cutoff else np.exp(cutoff)
             expβmτω = np.exp(βmτω) if βmτω <  cutoff else np.exp(cutoff)
-            if sign == "fermion":
-                K[iτ,iω] = 1.0/(expτω+expβmτω)
-            else:
-                K[iτ,iω] = 1.0/(expτω-expβmτω)
+            K[iτ,iω] = 1.0/(expτω+expβmτω)
     return K
 
 
@@ -69,21 +64,22 @@ def Pplus(z):
     return np.array([max(zj,0) for zj in z], dtype=float)
 
 def Salpha(x, α):
-    def _Salpha(x):
-        if x > α:
-            return x-α
-        elif x < -α: 
-            return x + α
+    salpha = np.zeros(len(x),dtype=float)
+    for i in range(len(salpha)):
+        if x[i] > α:
+            salpha[i] = x[i]-α
+        elif x[i] < -α: 
+            salpha[i] = x[i] + α
         else:
-            return 0
-    return np.array(list(map(_Salpha, x)))
+            salpha[i] =  0.0
+    return salpha
 
 def compute_nu(ξ1, ξ2, V):
     Vξ1 = np.sum(np.dot(V, ξ1))
     Vξ2 = np.sum(np.dot(V, ξ2))
     return (1 - Vξ1)/Vξ2
 
-def update(S, V, Gp, zp, up, z, u, μp, μ, λ):
+def update(V, GpS, zp, up, z, u, μp, μ, λ):
     L = S.shape[0]
     e = np.ones(V.shape[0]) # determine size 
 
@@ -91,9 +87,9 @@ def update(S, V, Gp, zp, up, z, u, μp, μ, λ):
     ξ2 = np.zeros(L,dtype=float);
    
     inv = np.zeros((L,L),dtype=float)
-    for i in range(L): inv[i,i] = 1.0/(S[i]**2/λ + (μ+μp))
+    for i in range(L): inv[i,i] = 1.0/((S[i]**2)/λ + (μ+μp))
 
-    ξ1 = (1/λ)*(S*Gp) + μp*(zp-up) + μ*np.dot(V.T, (z-u))
+    ξ1 = (1/λ)*(GpS) + μp*(zp-up) + μ*np.dot(V.T, (z-u))
     ξ2 = np.dot(V.T, e)
 
     ξ1 = np.dot(inv, ξ1) 
@@ -120,8 +116,9 @@ def calculate(U, S, V, Gtau, μ, μp, λ, tol=1e-8, max_iter=10000):
     z = np.zeros(N)
     u = np.zeros(N)
 
+    GpS = S*Gp
     for it in range(max_iter):
-        xp, zp, up, z, u = update(S, V, Gp, zp, up, z, u, μp, μ, λ)
+        xp, zp, up, z, u = update(V, GpS, zp, up, z, u, μp, μ, λ)
         if it%1000 == 0 and it > 0:
             print("it = ", it,"\t", "ΔF = ", np.sum(np.abs(z-np.dot(V,xp))))
         if np.sum(np.abs(z - np.dot(V,xp))) < tol:
