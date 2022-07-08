@@ -156,12 +156,12 @@ def estimate(Gtau, K, U, S, V):
     #                             |
     #                            \ /
     xout = calculate(U, S, V, -Gtau.data[:,0,0].real, μ, μp, λ0)
-    χ0 = np.dot(Gtau.data[:,0,0].real-np.dot(K,xout),Gtau.data[:,0,0].real-np.dot(K,xout))
+    χ0 = np.dot(-Gtau.data[:,0,0].real-np.dot(K,xout),-Gtau.data[:,0,0].real-np.dot(K,xout))
 
     l1 = 1.0
     λ1 = 10**l1
     xout = calculate(U, S, V, -Gtau.data[:,0,0].real, μ, μp, λ1)
-    χ1 = np.dot(Gtau.data[:,0,0].real-np.dot(K,xout),Gtau.data[:,0,0].real-np.dot(K,xout))
+    χ1 = np.dot(-Gtau.data[:,0,0].real-np.dot(K,xout),-Gtau.data[:,0,0].real-np.dot(K,xout))
 
     b = (np.log(χ0)-np.log(χ1))/(np.log(λ0)-np.log(λ1))
     a = np.exp(np.log(χ0)-b*np.log(λ0))
@@ -170,7 +170,7 @@ def estimate(Gtau, K, U, S, V):
     for i, ll in enumerate(lexps):
         λ = 10**ll
         xout = calculate(U, S, V, -Gtau.data[:,0,0].real, μ, μp, λ)
-        χ = np.dot(Gtau.data[:,0,0].real-np.dot(K,xout),Gtau.data[:,0,0].real-np.dot(K,xout))
+        χ = np.dot(-Gtau.data[:,0,0].real-np.dot(K,xout),-Gtau.data[:,0,0].real-np.dot(K,xout))
         Fχ = a*λ**b/χ
         print(i,"/",len(lexps),  "λest= ", λ, "error= ", χ)
         if i > 2:
@@ -190,10 +190,10 @@ def estimate(Gtau, K, U, S, V):
 if __name__ == "__main__":
     Gtau, Gw = setup_mock_Gtau()
     # plot A(ω) = -1/π Im G(ω)
-    fig, ax = plt.subplots(1,2)
-    ax[0].plot(np.array([t.real for t in Gtau.mesh])/Gtau.mesh.beta,-Gtau.data[:,0,0].real)
-    ax[1].plot([w.real for w in Gw.mesh], (-1/np.pi)*Gw.data[:,0,0].imag)
-    plt.show()
+    #fig, ax = plt.subplots(1,2)
+    #ax[0].plot(np.array([t.real for t in Gtau.mesh])/Gtau.mesh.beta,-Gtau.data[:,0,0].real)
+    #ax[1].plot([w.real for w in Gw.mesh], (-1/np.pi)*Gw.data[:,0,0].imag)
+    #plt.show()
 
     N = 1001
     beta = 100.0
