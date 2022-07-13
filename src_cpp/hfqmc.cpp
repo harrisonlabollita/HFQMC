@@ -102,9 +102,29 @@ class QMC {
 			return det_up*det_dn;
 		}
 
-		void accept_move(void)
+		void accept_move(int p, vector<float> a)
 		{
 			//accept the move and update the Green's function
+			vn[p] *= 1;
+			vector<int> spins = {1, -1}
+			for(int s=0; s<spins.size(); s++){
+				float b = a[s]/(1 + a[s]*(1-g[s][p,p])); // <- g is a vector of two matrices? should we just split into gup and gdn?
+				vector<float> x0(g[s].size(), 0.0);
+				for (int k=0; k<x0.size(); k++) x0[k] = g[s][k,p];
+				x0[p] -= 1.0;
+				vector<float> x1(g[s].size(), 0.0);
+				for (int k=0; k<x0.size(); k++) x1[k] = g[s][p,k];
+				// call to blas here dger
+
+			}
+		}
+		void save_measure(void) {
+		//TODO: save measurement
+		
+		}
+		void run_hfqmc(void) {
+		//TODO: run the hfqmc
+		
 		}
 
 
